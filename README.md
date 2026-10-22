@@ -58,7 +58,8 @@ What this means for you:
 | Power BI Service → Export → PDF / PowerPoint | Not rendered until the visual is certified |
 | Subscriptions, Export-to-File REST API | Not rendered until the visual is certified |
 
-This visual is written to meet the certification *technical* requirements:
+This visual is written to meet the certification *technical* requirements
+(see [CERTIFICATION.md](CERTIFICATION.md) for the full checklist and status):
 
 - open source
 - no `innerHTML` / `eval` (enforced by `eslint-plugin-powerbi-visuals`)
@@ -125,14 +126,17 @@ loading before the export snapshot, so data URIs are strongly recommended.
 
 ## Development
 
-Requires Node.js 18+.
+Requires Node.js 18+ and the Power BI visuals CLI, installed globally as
+Microsoft's template expects (keeping it out of `package.json` keeps
+`npm audit` clean, which certification requires):
 
 ```bash
+npm install -g powerbi-visuals-tools@7.2.1
 npm install
 npm run lint        # eslint incl. Power BI certification rules
 npm run typecheck
 npm test            # sanitizer + data extraction unit tests (vitest/jsdom)
-npm run package     # builds dist/*.pbiviz
+npm run package     # builds dist/*.pbiviz (add -- --certification-audit for the cert scan)
 npm start           # dev server for the Power BI "Developer visual"
 ```
 

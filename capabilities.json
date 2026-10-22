@@ -67,6 +67,7 @@
         }
     },
     "supportsLandingPage": true,
+    "supportsKeyboardFocus": true,
     "supportsEmptyDataView": true,
     "suppressDefaultTitle": false,
     "privileges": []

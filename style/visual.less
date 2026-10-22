@@ -53,8 +53,12 @@
 // own CSS always wins.
 :where([data-pbi-link]) {
     cursor: pointer;
-    color: #0563c1;
+    color: var(--html-renderer-link, #0563c1);
     text-decoration: underline;
+}
+
+.html-renderer--high-contrast :where([data-pbi-link]):focus {
+    outline: 2px solid var(--html-renderer-link);
 }
 
 // Ensure background colours and images are kept in PDF/PowerPoint export.

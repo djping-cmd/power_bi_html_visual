@@ -10,6 +10,7 @@ import IVisual = powerbi.extensibility.visual.IVisual;
 import IVisualHost = powerbi.extensibility.visual.IVisualHost;
 import IVisualEventService = powerbi.extensibility.IVisualEventService;
 import ISelectionManager = powerbi.extensibility.ISelectionManager;
+import ISandboxExtendedColorPalette = powerbi.extensibility.ISandboxExtendedColorPalette;
 import DataView = powerbi.DataView;
 
 import { VisualFormattingSettingsModel } from "./settings";
@@ -51,6 +52,11 @@ export class Visual implements IVisual {
         this.root.appendChild(this.viewport);
 
         this.root.addEventListener("click", (event) => this.onClick(event));
+        this.root.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+                this.onClick(event);
+            }
+        });
         this.root.addEventListener("contextmenu", (event) => {
             this.selectionManager.showContextMenu({}, { x: event.clientX, y: event.clientY });
             event.preventDefault();
@@ -98,6 +104,18 @@ export class Visual implements IVisual {
         style.fontFamily = textCard.fontFamily.value;
         style.fontSize = `${textCard.fontSize.value}pt`;
         style.color = textCard.fontColor.value.value;
+        style.backgroundColor = "";
+
+        // High contrast: force the theme's colours for text, background and
+        // links. HTML that sets its own colours explicitly still wins.
+        const palette = this.host.colorPalette as ISandboxExtendedColorPalette;
+        const highContrast = Boolean(palette?.isHighContrast);
+        this.root.classList.toggle("html-renderer--high-contrast", highContrast);
+        if (highContrast) {
+            style.color = palette.foreground.value;
+            style.backgroundColor = palette.background.value;
+            style.setProperty("--html-renderer-link", palette.hyperlink.value);
+        }
 
         this.content.style.padding = `${layoutCard.padding.value}px`;
         this.content.style.gap = `${layoutCard.gap.value}px`;
@@ -119,6 +137,7 @@ export class Visual implements IVisual {
             const item = document.createElement("div");
             item.className = "html-renderer__item";
             item.appendChild(sanitizeToFragment(html, sanitizeOptions));
+            makeLinksFocusable(item);
             this.content.appendChild(item);
         }
 
@@ -169,7 +188,7 @@ export class Visual implements IVisual {
         }
     }
 
-    private onClick(event: MouseEvent): void {
+    private onClick(event: MouseEvent | KeyboardEvent): void {
         const target = event.target as Element | null;
         const link = target?.closest?.(`[${LINK_ATTRIBUTE}]`);
         if (link) {
@@ -180,4 +199,12 @@ export class Visual implements IVisual {
             this.host.launchUrl(link.getAttribute(LINK_ATTRIBUTE));
         }
     }
+}
+
+/** Links lose their href during sanitizing, so make them keyboard-reachable again. */
+function makeLinksFocusable(container: HTMLElement): void {
+    container.querySelectorAll(`[${LINK_ATTRIBUTE}]`).forEach((link) => {
+        link.setAttribute("tabindex", "0");
+        link.setAttribute("role", "link");
+    });
 }
