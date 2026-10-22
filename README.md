@@ -12,7 +12,8 @@ built to show correctly when a report is **exported to PDF or PowerPoint**.
   `data:image/...` images.
 - Sanitizes all markup with [DOMPurify](https://github.com/cure53/DOMPurify).
   Scripts, event handlers, iframes, forms, `<link>` and `<meta>` are removed.
-  External images are blocked by default.
+  External URLs in images, `srcset`, CSS (`url()`, `@import`, `@font-face`) and
+  SVG paint attributes are blocked by default. See [SECURITY.md](SECURITY.md).
 - Opens `http(s)` and `mailto` links through Power BI's `launchUrl`, so the
   report viewer gets the usual "open link" prompt.
 - Right-clicking the visual opens the standard Power BI context menu.
@@ -108,7 +109,10 @@ See [`samples/measures.dax`](samples/measures.dax) for example measures:
 - Avoid `position: fixed`, animations and transitions. Only the final static
   frame is captured.
 - Keep each visual's HTML under a few hundred KB. Very large strings slow down
-  both DAX and rendering.
+  both DAX and rendering. The visual stops rendering rows once the total
+  passes 2 million characters and shows a "content truncated" notice.
+- Each row is its own positioning context: `position: fixed` or `absolute`
+  is relative to that row's block, not to the whole visual.
 
 ### External images
 
@@ -146,7 +150,7 @@ npm start           # dev server for the Power BI "Developer visual"
 capabilities.json   data roles (HTML content, Granularity) and format properties
 pbiviz.json         visual metadata
 src/visual.ts       IVisual: render, fit-to-visual scaling, rendering events, links
-src/sanitizer.ts    DOMPurify configuration and URL policy
+src/sanitizer.ts    DOMPurify configuration, URL and CSS policy
 src/resources.ts    waits for images/fonts before renderingFinished
 src/data.ts         reads HTML values from the table data view
 src/settings.ts     format pane model

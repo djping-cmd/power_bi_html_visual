@@ -36,6 +36,11 @@
 .html-renderer__item {
     min-width: 0;
     max-width: 100%;
+    // Each row becomes the containing block and stacking context for its own
+    // content, so position:fixed/absolute overlays can't cover the whole visual.
+    position: relative;
+    transform: translateZ(0);
+    z-index: 0;
 
     // Keep images and SVGs inside their block.
     img, svg {

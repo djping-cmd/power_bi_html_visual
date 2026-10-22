@@ -84,7 +84,7 @@ class SecurityCard extends FormattingSettingsCard {
     allowExternalImages = new formattingSettings.ToggleSwitch({
         name: "allowExternalImages",
         displayName: "Allow external images",
-        description: "Keep http(s) image URLs. They are blocked by the Power BI sandbox unless the visual declares WebAccess, and may not load in time for PDF export. Prefer data: URIs or inline SVG.",
+        description: "Keep http(s) URLs in images and CSS (backgrounds, fonts, @import). Power BI blocks them unless the visual declares WebAccess, and they may not load in time for PDF export. Prefer data: URIs or inline SVG.",
         value: false
     });
 

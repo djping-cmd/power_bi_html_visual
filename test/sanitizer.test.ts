@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LINK_ATTRIBUTE, sanitizeToFragment } from "../src/sanitizer";
+import { LINK_ATTRIBUTE, isSafeCssValue, sanitizeToFragment } from "../src/sanitizer";
 
 const defaults = { allowExternalImages: false, allowLinks: true };
 
@@ -51,5 +51,70 @@ describe("sanitizeToFragment", () => {
     it("drops links entirely when links are disabled", () => {
         const host = render("<a href='https://example.com'>x</a>", { ...defaults, allowLinks: false });
         expect(host.querySelector("a")?.hasAttribute(LINK_ATTRIBUTE)).toBe(false);
+    });
+
+    // Regression tests for the security audit findings.
+
+    it("ignores data-pbi-link written in the input HTML", () => {
+        const html = "<div id='forged' data-pbi-link='javascript:alert(1)'>x</div><a id='real' data-pbi-link='https://evil.example' href='https://ok.example'>ok</a>";
+        const host = render(html);
+        expect(host.querySelector("#forged")?.hasAttribute(LINK_ATTRIBUTE)).toBe(false);
+        expect(host.querySelector("#real")?.getAttribute(LINK_ATTRIBUTE)).toBe("https://ok.example");
+        expect(render(html, { ...defaults, allowLinks: false }).querySelector(`[${LINK_ATTRIBUTE}]`)).toBeNull();
+    });
+
+    it("checks every srcset candidate", () => {
+        const host = render("<img srcset='#a 0.5x, https://evil.example/x.png 1x'><picture><source srcset='#a 1x, https://evil.example/y.png 2x'></picture>");
+        expect(host.querySelectorAll("[srcset]").length).toBe(0);
+    });
+
+    it("treats area and SVG anchor hrefs as links, even with external images on", () => {
+        const options = { allowExternalImages: true, allowLinks: false };
+        const host = render("<map name='m'><area id='area' href='https://evil.example' target='_top'></map><svg><a id='svga' xlink:href='https://evil.example'><rect/></a></svg>", options);
+        for (const id of ["#area", "#svga"]) {
+            const el = host.querySelector(id);
+            expect(el?.hasAttribute("href")).toBe(false);
+            expect(el?.hasAttribute("xlink:href")).toBe(false);
+            expect(el?.hasAttribute(LINK_ATTRIBUTE)).toBe(false);
+        }
+        expect(host.querySelector("[target]")).toBeNull();
+    });
+
+    it("keeps safe SVG presentation urls and removes external ones", () => {
+        const host = render("<svg><rect id='ok' fill='url(#g)'/><rect id='bad' fill='url(https://evil.example/f.svg#g)' mask='url(https://evil.example/m.svg#m)'/></svg>");
+        expect(host.querySelector("#ok")?.getAttribute("fill")).toBe("url(#g)");
+        expect(host.querySelector("#bad")?.hasAttribute("fill")).toBe(false);
+        expect(host.querySelector("#bad")?.hasAttribute("mask")).toBe(false);
+    });
+
+    it("removes external urls from style attributes and style blocks", () => {
+        const host = render("<style>@import url(https://evil.example/i.css); .a{color:red;background:url(https://evil.example/b.png)}</style><div class='a' style='color:blue;background-image:url(https://evil.example/c.png)'>x</div>");
+        const css = host.querySelector("style")?.textContent ?? "";
+        expect(css).not.toContain("evil.example");
+        expect(css).toContain("color: red");
+        const style = host.querySelector(".a")?.getAttribute("style") ?? "";
+        expect(style).not.toContain("evil.example");
+        expect(style).toContain("color: blue");
+    });
+
+    it("leaves CSS untouched when external images are allowed", () => {
+        const host = render("<div style='background-image:url(https://cdn.example/c.png)'>x</div>", { ...defaults, allowExternalImages: true });
+        expect(host.querySelector("div")?.getAttribute("style")).toContain("cdn.example");
+    });
+});
+
+describe("isSafeCssValue", () => {
+    it.each([
+        ["red", true],
+        ["url(#grad)", true],
+        ['url("data:image/png;base64,AAAA")', true],
+        ["calc(100% - 4px)", true],
+        ["url(https://evil.example/x.png)", false],
+        ['image-set("https://evil.example/x.png" 1x)', false],
+        ["u\\72l(https://evil.example/x.png)", false],
+        ['url("data:image/png,x\\") url(https://evil.example/x)', false],
+        ["url(//evil.example/x.png)", false]
+    ])("%s -> %s", (value, expected) => {
+        expect(isSafeCssValue(value)).toBe(expected);
     });
 });
