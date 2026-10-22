@@ -1,0 +1,64 @@
+.html-renderer {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.html-renderer__viewport {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+
+    &--scroll {
+        overflow: auto;
+    }
+}
+
+.html-renderer__content {
+    box-sizing: border-box;
+    transform-origin: top left;
+
+    &[data-arrangement="stack"] {
+        display: flex;
+        flex-direction: column;
+    }
+
+    &[data-arrangement="flow"] {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: flex-start;
+    }
+}
+
+.html-renderer__item {
+    min-width: 0;
+    max-width: 100%;
+
+    // Keep images and SVGs inside their block.
+    img, svg {
+        max-width: 100%;
+    }
+}
+
+.html-renderer__message {
+    opacity: 0.7;
+    font-style: italic;
+}
+
+// Links are opened via host.launchUrl; style them like links even though the
+// href attribute is removed. :where() keeps specificity at zero so the HTML's
+// own CSS always wins.
+:where([data-pbi-link]) {
+    cursor: pointer;
+    color: #0563c1;
+    text-decoration: underline;
+}
+
+// Ensure background colours and images are kept in PDF/PowerPoint export.
+.html-renderer, .html-renderer * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
