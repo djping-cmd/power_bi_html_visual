@@ -1,0 +1,26 @@
+{
+    "visual": {
+        "name": "htmlRendererPdf",
+        "displayName": "HTML Renderer (PDF-safe)",
+        "guid": "htmlRendererPdfFCD8F466B8A444838109C14B5FFC5059",
+        "visualClassName": "Visual",
+        "version": "1.0.0.0",
+        "description": "Renders HTML from a DAX measure or column as a visual, sanitized and designed to render correctly in Export to PDF / PowerPoint.",
+        "supportUrl": "https://github.com/djping-cmd/power_bi_html_visual",
+        "gitHubUrl": "https://github.com/djping-cmd/power_bi_html_visual"
+    },
+    "apiVersion": "5.11.1",
+    "author": {
+        "name": "Daniel Hutchinson",
+        "email": "Daniel.Hutchinson@stepstonegroup.com"
+    },
+    "assets": {
+        "icon": "assets/icon.png"
+    },
+    "externalJS": null,
+    "style": "style/visual.less",
+    "capabilities": "capabilities.json",
+    "dependencies": null,
+    "stringResources": [],
+    "version": "1.0.0.0"
+}

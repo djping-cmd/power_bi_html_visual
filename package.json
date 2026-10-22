@@ -1,0 +1,33 @@
+{
+  "name": "power-bi-html-renderer-pdf",
+  "description": "Power BI custom visual that renders HTML measures and survives Export to PDF / PowerPoint.",
+  "version": "1.0.0",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/djping-cmd/power_bi_html_visual"
+  },
+  "license": "MIT",
+  "scripts": {
+    "pbiviz": "pbiviz",
+    "start": "pbiviz start",
+    "package": "pbiviz package",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "dompurify": "3.4.17",
+    "powerbi-visuals-api": "5.11.1",
+    "powerbi-visuals-utils-formattingmodel": "6.0.4"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.8.0",
+    "eslint": "^9.11.1",
+    "eslint-plugin-powerbi-visuals": "^1.0.0",
+    "jsdom": "^25.0.1",
+    "powerbi-visuals-tools": "7.2.1",
+    "typescript": "5.5.4",
+    "vitest": "^2.1.9"
+  }
+}

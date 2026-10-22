@@ -1,0 +1,68 @@
+// Sample DAX measures for the HTML Renderer (PDF-safe) visual.
+// Replace table/column names with your own model's.
+
+// 1. KPI card with inline CSS -------------------------------------------------
+HTML KPI Card =
+VAR _irr = [Net IRR]
+VAR _colour = IF ( _irr >= 0, "#2e7d32", "#c62828" )
+RETURN
+    "<style>
+       .kpi { font-family: 'Segoe UI', sans-serif; padding: 12px 16px;
+              border-left: 6px solid " & _colour & "; background: #f7f7f7; }
+       .kpi .label { font-size: 11px; color: #605e5c; text-transform: uppercase; }
+       .kpi .value { font-size: 28px; font-weight: 600; color: " & _colour & "; }
+     </style>
+     <div class='kpi'>
+       <div class='label'>Net IRR</div>
+       <div class='value'>" & FORMAT ( _irr, "0.0%" ) & "</div>
+     </div>"
+
+// 2. Table built from rows ----------------------------------------------------
+// Use with no Granularity field: the whole table is one HTML string.
+HTML Fund Table =
+VAR _rows =
+    CONCATENATEX (
+        TOPN ( 20, VALUES ( Fund[Fund Name] ), [NAV], DESC ),
+        "<tr><td>" & Fund[Fund Name] & "</td>"
+            & "<td class='num'>" & FORMAT ( [NAV], "$#,0.0,,M" ) & "</td>"
+            & "<td class='num'>" & FORMAT ( [Net IRR], "0.0%" ) & "</td></tr>",
+        "",
+        [NAV], DESC
+    )
+RETURN
+    "<style>
+       table { border-collapse: collapse; width: 100%; font-size: 11px; }
+       th { background: #1f4e79; color: #fff; text-align: left; padding: 4px 6px; }
+       td { border-bottom: 1px solid #ddd; padding: 3px 6px; }
+       td.num { text-align: right; }
+     </style>
+     <table><tr><th>Fund</th><th>NAV</th><th>Net IRR</th></tr>" & _rows & "</table>"
+
+// 3. Inline SVG sparkline (renders in PDF; no external resources) -------------
+HTML Sparkline =
+VAR _w = 200
+VAR _h = 40
+VAR _pts =
+    ADDCOLUMNS ( VALUES ( 'Date'[Quarter End] ), "@v", [NAV] )
+VAR _min = MINX ( _pts, [@v] )
+VAR _max = MAXX ( _pts, [@v] )
+VAR _n = COUNTROWS ( _pts )
+VAR _path =
+    CONCATENATEX (
+        _pts,
+        VAR _i = RANKX ( _pts, 'Date'[Quarter End], , ASC ) - 1
+        RETURN
+            FORMAT ( DIVIDE ( _i * _w, _n - 1 ), "0" ) & ","
+                & FORMAT ( _h - DIVIDE ( ( [@v] - _min ) * _h, _max - _min ), "0" ),
+        " ",
+        'Date'[Quarter End], ASC
+    )
+RETURN
+    "<svg xmlns='http://www.w3.org/2000/svg' width='" & _w & "' height='" & _h & "'>"
+        & "<polyline points='" & _path & "' fill='none' stroke='#1f4e79' stroke-width='2'/></svg>"
+
+// 4. Image embedded as a data URI ----------------------------------------------
+// External http(s) images are blocked by default because they are unreliable in
+// PDF export. Store the image as base64 text in the model instead.
+HTML Logo =
+"<img style='height:32px' src='data:image/png;base64," & MAX ( Images[Base64] ) & "'>"

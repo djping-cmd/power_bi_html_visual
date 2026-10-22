@@ -1,0 +1,73 @@
+{
+    "dataRoles": [
+        {
+            "displayName": "HTML content",
+            "name": "content",
+            "kind": "GroupingOrMeasure",
+            "description": "A measure or column that returns an HTML string."
+        },
+        {
+            "displayName": "Granularity",
+            "name": "granularity",
+            "kind": "Grouping",
+            "description": "Optional. Evaluate the HTML once per value of this column (one block per row)."
+        }
+    ],
+    "dataViewMappings": [
+        {
+            "conditions": [
+                { "content": { "max": 1 }, "granularity": { "max": 1 } }
+            ],
+            "table": {
+                "rows": {
+                    "select": [
+                        { "for": { "in": "granularity" } },
+                        { "for": { "in": "content" } }
+                    ],
+                    "dataReductionAlgorithm": {
+                        "top": { "count": 1000 }
+                    }
+                }
+            }
+        }
+    ],
+    "objects": {
+        "layout": {
+            "properties": {
+                "fitMode": { "type": { "enumeration": [
+                    { "value": "none", "displayName": "None (scroll)" },
+                    { "value": "width", "displayName": "Shrink to fit width" },
+                    { "value": "both", "displayName": "Shrink to fit visual" }
+                ] } },
+                "arrangement": { "type": { "enumeration": [
+                    { "value": "stack", "displayName": "Stack vertically" },
+                    { "value": "flow", "displayName": "Flow (wrap left to right)" }
+                ] } },
+                "gap": { "type": { "numeric": true } },
+                "padding": { "type": { "numeric": true } }
+            }
+        },
+        "text": {
+            "properties": {
+                "fontFamily": { "type": { "formatting": { "fontFamily": true } } },
+                "fontSize": { "type": { "formatting": { "fontSize": true } } },
+                "fontColor": { "type": { "fill": { "solid": { "color": true } } } }
+            }
+        },
+        "security": {
+            "properties": {
+                "allowExternalImages": { "type": { "bool": true } },
+                "allowLinks": { "type": { "bool": true } }
+            }
+        },
+        "noData": {
+            "properties": {
+                "message": { "type": { "text": true } }
+            }
+        }
+    },
+    "supportsLandingPage": true,
+    "supportsEmptyDataView": true,
+    "suppressDefaultTitle": false,
+    "privileges": []
+}
