@@ -1,7 +1,7 @@
 {
   "name": "power-bi-html-renderer-pdf",
   "description": "Power BI custom visual that renders HTML measures and survives Export to PDF / PowerPoint.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "repository": {
     "type": "git",
