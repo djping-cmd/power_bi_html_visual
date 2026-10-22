@@ -12,7 +12,8 @@ built to show correctly when a report is **exported to PDF or PowerPoint**.
   `data:image/...` images.
 - Sanitizes all markup with [DOMPurify](https://github.com/cure53/DOMPurify).
   Scripts, event handlers, iframes, forms, `<link>` and `<meta>` are removed.
-  External images are blocked by default.
+  External URLs in images, `srcset`, CSS (`url()`, `@import`, `@font-face`) and
+  SVG paint attributes are blocked by default. See [SECURITY.md](SECURITY.md).
 - Opens `http(s)` and `mailto` links through Power BI's `launchUrl`, so the
   report viewer gets the usual "open link" prompt.
 - Right-clicking the visual opens the standard Power BI context menu.
@@ -58,7 +59,8 @@ What this means for you:
 | Power BI Service → Export → PDF / PowerPoint | Not rendered until the visual is certified |
 | Subscriptions, Export-to-File REST API | Not rendered until the visual is certified |
 
-This visual is written to meet the certification *technical* requirements:
+This visual is written to meet the certification *technical* requirements
+(see [CERTIFICATION.md](CERTIFICATION.md) for the full checklist and status):
 
 - open source
 - no `innerHTML` / `eval` (enforced by `eslint-plugin-powerbi-visuals`)
@@ -107,7 +109,10 @@ See [`samples/measures.dax`](samples/measures.dax) for example measures:
 - Avoid `position: fixed`, animations and transitions. Only the final static
   frame is captured.
 - Keep each visual's HTML under a few hundred KB. Very large strings slow down
-  both DAX and rendering.
+  both DAX and rendering. The visual stops rendering rows once the total
+  passes 2 million characters and shows a "content truncated" notice.
+- Each row is its own positioning context: `position: fixed` or `absolute`
+  is relative to that row's block, not to the whole visual.
 
 ### External images
 
@@ -125,14 +130,17 @@ loading before the export snapshot, so data URIs are strongly recommended.
 
 ## Development
 
-Requires Node.js 18+.
+Requires Node.js 18+ and the Power BI visuals CLI, installed globally as
+Microsoft's template expects (keeping it out of `package.json` keeps
+`npm audit` clean, which certification requires):
 
 ```bash
+npm install -g powerbi-visuals-tools@7.2.1
 npm install
 npm run lint        # eslint incl. Power BI certification rules
 npm run typecheck
 npm test            # sanitizer + data extraction unit tests (vitest/jsdom)
-npm run package     # builds dist/*.pbiviz
+npm run package     # builds dist/*.pbiviz (add -- --certification-audit for the cert scan)
 npm start           # dev server for the Power BI "Developer visual"
 ```
 
@@ -142,7 +150,7 @@ npm start           # dev server for the Power BI "Developer visual"
 capabilities.json   data roles (HTML content, Granularity) and format properties
 pbiviz.json         visual metadata
 src/visual.ts       IVisual: render, fit-to-visual scaling, rendering events, links
-src/sanitizer.ts    DOMPurify configuration and URL policy
+src/sanitizer.ts    DOMPurify configuration, URL and CSS policy
 src/resources.ts    waits for images/fonts before renderingFinished
 src/data.ts         reads HTML values from the table data view
 src/settings.ts     format pane model

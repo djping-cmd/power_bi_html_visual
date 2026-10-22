@@ -10,16 +10,20 @@ import IVisual = powerbi.extensibility.visual.IVisual;
 import IVisualHost = powerbi.extensibility.visual.IVisualHost;
 import IVisualEventService = powerbi.extensibility.IVisualEventService;
 import ISelectionManager = powerbi.extensibility.ISelectionManager;
+import ISandboxExtendedColorPalette = powerbi.extensibility.ISandboxExtendedColorPalette;
 import DataView = powerbi.DataView;
 
 import { VisualFormattingSettingsModel } from "./settings";
-import { LINK_ATTRIBUTE, sanitizeToFragment } from "./sanitizer";
+import { LINK_ATTRIBUTE, createSanitizer, isSafeLink } from "./sanitizer";
 import { waitForResources } from "./resources";
 import { extractHtmlValues } from "./data";
 
 // Upper bound on how long export waits for images/fonts before we report
 // rendering as finished anyway. Export never hangs on a broken image.
 const RESOURCE_TIMEOUT_MS = 5000;
+// Total HTML rendered per update. Keeps a runaway measure from freezing or
+// crashing the visual; rows beyond the budget are skipped with a notice.
+const MAX_TOTAL_CHARACTERS = 2_000_000;
 
 export class Visual implements IVisual {
     private host: IVisualHost;
@@ -51,6 +55,11 @@ export class Visual implements IVisual {
         this.root.appendChild(this.viewport);
 
         this.root.addEventListener("click", (event) => this.onClick(event));
+        this.root.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+                this.onClick(event);
+            }
+        });
         this.root.addEventListener("contextmenu", (event) => {
             this.selectionManager.showContextMenu({}, { x: event.clientX, y: event.clientY });
             event.preventDefault();
@@ -98,6 +107,18 @@ export class Visual implements IVisual {
         style.fontFamily = textCard.fontFamily.value;
         style.fontSize = `${textCard.fontSize.value}pt`;
         style.color = textCard.fontColor.value.value;
+        style.backgroundColor = "";
+
+        // High contrast: force the theme's colours for text, background and
+        // links. HTML that sets its own colours explicitly still wins.
+        const palette = this.host.colorPalette as ISandboxExtendedColorPalette;
+        const highContrast = Boolean(palette?.isHighContrast);
+        this.root.classList.toggle("html-renderer--high-contrast", highContrast);
+        if (highContrast) {
+            style.color = palette.foreground.value;
+            style.backgroundColor = palette.background.value;
+            style.setProperty("--html-renderer-link", palette.hyperlink.value);
+        }
 
         this.content.style.padding = `${layoutCard.padding.value}px`;
         this.content.style.gap = `${layoutCard.gap.value}px`;
@@ -110,16 +131,28 @@ export class Visual implements IVisual {
 
         const values = extractHtmlValues(dataView);
         const { securityCard, noDataCard } = this.formattingSettings;
-        const sanitizeOptions = {
+        const sanitizer = createSanitizer({
             allowExternalImages: securityCard.allowExternalImages.value,
             allowLinks: securityCard.allowLinks.value
-        };
+        });
 
-        for (const html of values) {
-            const item = document.createElement("div");
-            item.className = "html-renderer__item";
-            item.appendChild(sanitizeToFragment(html, sanitizeOptions));
-            this.content.appendChild(item);
+        try {
+            let budget = MAX_TOTAL_CHARACTERS;
+            for (const html of values) {
+                if (html.length > budget) {
+                    this.content.appendChild(createMessage("Content truncated: the HTML exceeds the size this visual can render."));
+                    break;
+                }
+                budget -= html.length;
+
+                const item = document.createElement("div");
+                item.className = "html-renderer__item";
+                item.appendChild(sanitizer.sanitize(html));
+                makeLinksFocusable(item);
+                this.content.appendChild(item);
+            }
+        } finally {
+            sanitizer.dispose();
         }
 
         if (values.length > 0) {
@@ -128,10 +161,7 @@ export class Visual implements IVisual {
 
         const message = noDataCard.message.value;
         if (message) {
-            const empty = document.createElement("div");
-            empty.className = "html-renderer__message";
-            empty.textContent = message;
-            this.content.appendChild(empty);
+            this.content.appendChild(createMessage(message));
         }
         return false;
     }
@@ -169,15 +199,33 @@ export class Visual implements IVisual {
         }
     }
 
-    private onClick(event: MouseEvent): void {
+    private onClick(event: MouseEvent | KeyboardEvent): void {
         const target = event.target as Element | null;
         const link = target?.closest?.(`[${LINK_ATTRIBUTE}]`);
         if (link) {
             event.preventDefault();
-            if (this.host.hostCapabilities?.allowInteractions === false) {
+            const url = link.getAttribute(LINK_ATTRIBUTE);
+            if (this.host.hostCapabilities?.allowInteractions === false
+                || !this.formattingSettings?.securityCard.allowLinks.value
+                || !isSafeLink(url)) {
                 return;
             }
-            this.host.launchUrl(link.getAttribute(LINK_ATTRIBUTE));
+            this.host.launchUrl(url.trim());
         }
     }
+}
+
+/** Links lose their href during sanitizing, so make them keyboard-reachable again. */
+function makeLinksFocusable(container: HTMLElement): void {
+    container.querySelectorAll(`[${LINK_ATTRIBUTE}]`).forEach((link) => {
+        link.setAttribute("tabindex", "0");
+        link.setAttribute("role", "link");
+    });
+}
+
+function createMessage(text: string): HTMLElement {
+    const message = document.createElement("div");
+    message.className = "html-renderer__message";
+    message.textContent = text;
+    return message;
 }
